@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'constants/app_colors.dart';
 import 'user/app_logo.dart';
+import 'services/supabase_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,6 +17,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _obscurePassword = true;
   String _selectedRole = 'Users';
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -24,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     // Basic validation check
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -46,27 +48,60 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // Success feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Login berhasil sebagai $_selectedRole ($email)',
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: AppColors.rolePillInner,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 1),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
+    setState(() => _isLoading = true);
 
-    // Smooth navigation to Dashboard
-    Future.delayed(const Duration(milliseconds: 400), () {
+    try {
+      // 🔗 Terhubung langsung ke Backend Supabase
+      final user = await SupabaseService.login(
+        email: email,
+        password: password,
+        role: _selectedRole,
+      );
+
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/dashboard');
-    });
+
+      // Notifikasi Sukses
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Login Supabase berhasil sebagai ${user.role} (${user.email})',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: AppColors.rolePillInner,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+
+      // Navigasi ke Dashboard
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacementNamed('/dashboard');
+      });
+    } catch (e) {
+      if (!mounted) return;
+      final errorMsg = e.toString().replaceAll('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            errorMsg,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -281,17 +316,26 @@ class _LoginPageState extends State<LoginPage> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: _handleLogin,
-          child: const Center(
-            child: Text(
-              'Masuk',
-              style: TextStyle(
-                color: AppColors.darkText,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
+          onTap: _isLoading ? null : _handleLogin,
+          child: Center(
+            child: _isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.darkText),
+                    ),
+                  )
+                : const Text(
+                    'Masuk',
+                    style: TextStyle(
+                      color: AppColors.darkText,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
           ),
         ),
       ),

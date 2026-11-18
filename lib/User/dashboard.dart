@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'pesan_layanan.dart';
 import 'keranjang.dart';
 import 'cart_state.dart';
+import 'riwayat_pesanan.dart';
+import '../services/supabase_service.dart';
 
 void main() => runApp(const LaundryApp());
 
@@ -399,36 +401,68 @@ class PesananPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
-          'Riwayat Pesanan',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Order #LG-9750',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Riwayat Pesanan',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const RiwayatPesananPage(),
                   ),
-                  SizedBox(height: 4),
-                  Text('Cuci Setrika - Selesai'),
-                ],
+                );
+              },
+              child: const Text(
+                'Lihat Semua',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: kButton,
+                ),
               ),
-              Text(
-                'Rp 24.000',
-                style: TextStyle(fontWeight: FontWeight.bold, color: kButton),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const RiwayatPesananPage(),
               ),
-            ],
+            );
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Order #LG-9750',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 4),
+                    Text('Cuci Setrika - Selesai'),
+                  ],
+                ),
+                Text(
+                  'Rp 24.000',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: kButton),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -454,14 +488,16 @@ class ProfilePage extends StatelessWidget {
             child: Icon(Icons.person_rounded, size: 54, color: Colors.white),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Pelanggan LaundryGO',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            SupabaseService.currentUser != null
+                ? (SupabaseService.currentUser!.username ?? 'Pengguna LaundryGO')
+                : 'Pelanggan LaundryGO',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'user@laundrygo.id',
-            style: TextStyle(color: Colors.black54, fontSize: 13),
+          Text(
+            SupabaseService.currentUser?.email ?? 'user@laundrygo.id',
+            style: const TextStyle(color: Colors.black54, fontSize: 13),
           ),
           const SizedBox(height: 28),
 

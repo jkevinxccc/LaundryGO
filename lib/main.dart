@@ -6,9 +6,10 @@ import 'login.dart';
 import 'user/dashboard.dart';
 import 'user/pesan_layanan.dart';
 import 'user/keranjang.dart';
-import 'user/riwayatpesanan/riwayat_pesanan.dart';
+import 'user/riwayat_pesanan.dart';
+import 'services/supabase_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Set system navigation & status bar matching app design
@@ -20,6 +21,9 @@ void main() {
       systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
+
+  // Initialize Supabase Backend
+  await SupabaseService.init();
 
   runApp(const MyApp());
 }
@@ -47,6 +51,7 @@ class MyApp extends StatelessWidget {
         '/dashboard': (context) => const MainPage(),
         '/pesan_layanan': (context) => const PesanLayananPage(),
         '/keranjang': (context) => const KeranjangPage(),
+        '/riwayat_pesanan': (context) => const RiwayatPesananPage(),
       },
     );
   }

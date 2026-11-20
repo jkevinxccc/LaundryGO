@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'constants/app_colors.dart';
 import 'login.dart';
-import 'user/app_logo.dart';
+import 'User/app_logo.dart';
 
 class LoadingScreen extends StatefulWidget {
   final Duration duration;

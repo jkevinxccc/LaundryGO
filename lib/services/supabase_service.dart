@@ -39,7 +39,7 @@ class SupabaseService {
     try {
       await Supabase.initialize(
         url: supabaseUrl,
-        anonKey: supabaseAnonKey,
+        anonKey: supabaseAnonKey, // publishableKey di versi baru
       );
       _initialized = true;
       if (kDebugMode) {
@@ -109,7 +109,7 @@ class SupabaseService {
           return currentUser!;
         }
       } else {
-        // 2. Cari di tabel "Admin" (untuk Staff atau Admin)
+        // 2. Cari di tabel "Admin" (untuk Admin)
         final data = await client
             .from('Admin')
             .select()
@@ -179,15 +179,89 @@ class SupabaseService {
     }
   }
 
-  /// Mengambil riwayat pesanan dari Supabase tabel Pesanan
+  /// Membuat pesanan baru ke Supabase sesuai struktur:
+  /// - Tabel Pesanan: id_pelanggan, id_layanan (item pertama), total_harga, status, id_payment, tanggal_order
+  /// - Tabel Detail_Pesanan: satu row per item (id_pesanan, id_layanan, sub_total, catatan)
+  /// Payment: Cash=1, Qris=2
+  static Future<int> buatPesanan({
+    required List<Map<String, dynamic>> items,
+    required String metodePembayaran,
+  }) async {
+    if (currentUser == null) throw Exception('User belum login');
+    if (items.isEmpty) throw Exception('Tidak ada item pesanan');
+
+    final idPelanggan = currentUser!.id;
+    final int idPayment = metodePembayaran == 'Qris' ? 2 : 1;
+    final int totalHarga = items.fold(0, (sum, i) => sum + (i['sub_total'] as int));
+    final String tanggalOrder = DateTime.now().toIso8601String().split('T').first;
+
+    // Layanan utama (item pertama) untuk kolom id_layanan di Pesanan
+    final int idLayananUtama = items.first['id_layanan'] as int;
+
+    // 1. INSERT ke tabel Pesanan
+    final pesananInserted = await client
+        .from('Pesanan')
+        .insert({
+          'id_pelanggan': idPelanggan,
+          'id_layanan': idLayananUtama,
+          'total_harga': totalHarga,
+          'status': 'Baru',
+          'id_payment': idPayment,
+          'tanggal_order': tanggalOrder,
+        })
+        .select()
+        .single();
+
+    final int idPesanan = pesananInserted['id_pesanan'] as int;
+
+    // 2. INSERT Detail_Pesanan untuk setiap item
+    final List<Map<String, dynamic>> details = items.map((item) => {
+      'id_pesanan': idPesanan,
+      'id_layanan': item['id_layanan'],
+      'sub_total': item['sub_total'],
+      'catatan': item['catatan'] ?? '',
+    }).toList();
+
+    await client.from('Detail_Pesanan').insert(details);
+
+    return idPesanan;
+  }
+
+  /// Mengambil riwayat pesanan dari Supabase tabel Pesanan + Detail_Pesanan
   static Future<List<Map<String, dynamic>>> getRiwayatPesanan() async {
     try {
-      var query = client.from('Pesanan').select('*, Layanan(*)');
+      // Join hanya Detail_Pesanan (tidak Layanan langsung karena tidak ada FK valid)
+      var query = client
+          .from('Pesanan')
+          .select('*, Detail_Pesanan(*)');
       if (currentUser != null && currentUser!.role == 'Users') {
         query = query.eq('id_pelanggan', currentUser!.id);
       }
-      final List<dynamic> response = await query.order('id_pesanan', ascending: false);
-      return response.cast<Map<String, dynamic>>();
+      final List<dynamic> pesananList =
+          await query.order('id_pesanan', ascending: false);
+
+      // Ambil semua data Layanan sekali untuk mapping
+      final List<dynamic> layananList =
+          await client.from('Layanan').select('id_layanan, nama_layanan, harga_layanan');
+      final Map<int, String> layananMap = {
+        for (final l in layananList)
+          (l['id_layanan'] as int): l['nama_layanan'] as String
+      };
+
+      // Inject nama layanan ke setiap Detail_Pesanan
+      return pesananList.map<Map<String, dynamic>>((p) {
+        final row = Map<String, dynamic>.from(p as Map);
+        final details = row['Detail_Pesanan'];
+        if (details != null && details is List) {
+          row['Detail_Pesanan'] = details.map((d) {
+            final detail = Map<String, dynamic>.from(d as Map);
+            final idL = detail['id_layanan'] as int?;
+            detail['nama_layanan'] = idL != null ? (layananMap[idL] ?? 'Layanan') : 'Layanan';
+            return detail;
+          }).toList();
+        }
+        return row;
+      }).toList();
     } catch (e) {
       if (kDebugMode) print('Error fetching Pesanan: $e');
       return [];

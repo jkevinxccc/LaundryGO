@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'cart_state.dart';
+import '../services/supabase_service.dart';
 
 class KeranjangPage extends StatefulWidget {
   const KeranjangPage({super.key});
@@ -47,7 +48,7 @@ class _KeranjangPageState extends State<KeranjangPage> {
     if (mounted) setState(() {});
   }
 
-  void _handleCheckout() {
+  void _handleCheckout() async {
     if (_cart.cartItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -66,7 +67,61 @@ class _KeranjangPageState extends State<KeranjangPage> {
       }
     }
 
-    // Tampilkan Dialog Checkout Berhasil
+    // --- Simpan ke Supabase ---
+    // Mapping id lokal → id_layanan di Supabase
+    const idMap = {
+      'cuci_kering': 1,
+      'cuci_setrika': 2,
+      'setrika_saja': 3,
+      'express': 4,
+    };
+
+    final itemsToSave = _cart.cartItems.map((item) {
+      return {
+        'id_layanan': idMap[item.id] ?? 1,
+        'sub_total': item.subtotal,
+        'catatan': item.note,
+      };
+    }).toList();
+
+    // Tampilkan loading
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFFDB9558)),
+      ),
+    );
+
+    try {
+      await SupabaseService.buatPesanan(
+        items: itemsToSave,
+        metodePembayaran: _selectedPayment,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // tutup loading
+
+      // Clear cart setelah berhasil
+      _cart.clearCart();
+
+      // Tampilkan Dialog Checkout Berhasil
+      _showSuccessDialog();
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // tutup loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membuat pesanan: ${e.toString().replaceAll('Exception: ', '')}'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _showSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -104,22 +159,6 @@ class _KeranjangPageState extends State<KeranjangPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total Pembayaran:',
-                          style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      Text(
-                        _cart.formattedTotalPrice,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: kOrange,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
                       const Text('Metode Pembayaran:',
                           style: TextStyle(fontSize: 12, color: Colors.black54)),
                       Text(
@@ -127,6 +166,22 @@ class _KeranjangPageState extends State<KeranjangPage> {
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Status:',
+                          style: TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(
+                        'Baru',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF97A87A),
                         ),
                       ),
                     ],
@@ -148,7 +203,9 @@ class _KeranjangPageState extends State<KeranjangPage> {
               ),
               onPressed: () {
                 Navigator.of(ctx).pop(); // close dialog
-                Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/dashboard');
+                Navigator.of(context).popUntil(
+                  (route) => route.isFirst || route.settings.name == '/dashboard',
+                );
               },
               child: const Text(
                 'Kembali ke Beranda',

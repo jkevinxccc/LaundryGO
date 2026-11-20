@@ -3,10 +3,10 @@ import 'package:flutter/services.dart';
 import 'constants/app_colors.dart';
 import 'loading.dart';
 import 'login.dart';
-import 'user/dashboard.dart';
-import 'user/pesan_layanan.dart';
-import 'user/keranjang.dart';
-import 'user/riwayat_pesanan.dart';
+import 'User/dashboard.dart';
+import 'User/pesan_layanan.dart';
+import 'User/keranjang.dart';
+import 'User/riwayat_pesanan.dart';
 import 'services/supabase_service.dart';
 
 void main() async {

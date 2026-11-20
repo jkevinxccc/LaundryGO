@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'constants/app_colors.dart';
-import 'user/app_logo.dart';
+import 'User/app_logo.dart';
 import 'services/supabase_service.dart';
 
 class LoginPage extends StatefulWidget {
@@ -200,11 +200,8 @@ class _LoginPageState extends State<LoginPage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(26),
           onTap: () {
-            // Optional role toggle functionality (Users / Staff / Admin)
             setState(() {
               if (_selectedRole == 'Users') {
-                _selectedRole = 'Staff';
-              } else if (_selectedRole == 'Staff') {
                 _selectedRole = 'Admin';
               } else {
                 _selectedRole = 'Users';

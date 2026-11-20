@@ -8,7 +8,6 @@ class RiwayatPesananPage extends StatefulWidget {
 }
 
 class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
-  // Palet Warna Sesuai Desain Figma
   static const Color kBackground = Color(0xFFAFCBE2);
   static const Color kOrange = Color(0xFFDB9558);
   static const Color kSage = Color(0xFF97A87A);
@@ -19,13 +18,12 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
   String _keyword = '';
   int _navIndex = 1;
 
-  // Data dummy (ganti dengan data asli dari state/API)
   final List<Map<String, dynamic>> _orders = [
     {'id': '#LG0012', 'service': 'Cuci Kering - 2 kg', 'price': 16000, 'date': '12 Sep 2025, 10:30', 'status': 'Diproses'},
-    {'id': '#LG0011', 'service': 'Cuci Setrika - 3 kg', 'price': 24000, 'date': '11 Sep 2025, 14:15', 'status': 'Diproses'},
-    {'id': '#LG0010', 'service': 'Setrika Saja - 1 kg', 'price': 7000, 'date': '10 Sep 2025, 09:00', 'status': 'Baru'},
-    {'id': '#LG0009', 'service': 'Cuci Kering - 2 kg', 'price': 16000, 'date': '08 Sep 2025, 16:20', 'status': 'Selesai'},
-    {'id': '#LG0008', 'service': 'Express - 2 kg', 'price': 30000, 'date': '05 Sep 2025, 11:45', 'status': 'Selesai'},
+    {'id': '#LG0012', 'service': 'Cuci Kering - 2 kg', 'price': 16000, 'date': '12 Sep 2025, 10:30', 'status': 'Diproses'},
+    {'id': '#LG0012', 'service': 'Cuci Kering - 2 kg', 'price': 16000, 'date': '12 Sep 2025, 10:30', 'status': 'Diproses'},
+    {'id': '#LG0012', 'service': 'Cuci Kering - 2 kg', 'price': 16000, 'date': '08 Sep 2025, 16:20', 'status': 'Selesai'},
+    {'id': '#LG0012', 'service': 'Cuci Kering - 2 kg', 'price': 16000, 'date': '05 Sep 2025, 11:45', 'status': 'Selesai'},
   ];
 
   List<Map<String, dynamic>> get _filteredOrders {
@@ -53,14 +51,12 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
   void _onBottomNavTapped(int index) {
     setState(() => _navIndex = index);
     if (index == 0) {
-      // Kembali ke Beranda
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       } else {
         Navigator.of(context).pushReplacementNamed('/dashboard');
       }
     } else if (index == 2) {
-      // Kembali ke Dashboard (tab profil)
       Navigator.of(context).pushReplacementNamed('/dashboard');
     }
   }
@@ -71,39 +67,50 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
 
     return Scaffold(
       backgroundColor: kBackground,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Colors.black87),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              Navigator.of(context).pushReplacementNamed('/dashboard');
-            }
-          },
-        ),
-        title: const Text(
-          'Riwayat Pesanan',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ===== Header =====
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.black87),
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      } else {
+                        Navigator.of(context).pushReplacementNamed('/dashboard');
+                      }
+                    },
+                  ),
+                  const Text(
+                    'Riwayat Pesanan',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ===== Search Bar =====
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
               child: _buildSearchBar(),
             ),
+
+            // ===== Filter Chips =====
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
               child: _buildFilterChips(),
             ),
+
+            // ===== Order List =====
             Expanded(
               child: orders.isEmpty
                   ? const Center(
@@ -116,10 +123,12 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                       itemCount: orders.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 14),
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, i) => _buildOrderCard(orders[i]),
                     ),
             ),
+
+            // ===== Bottom Nav =====
             _buildBottomNav(),
           ],
         ),
@@ -127,7 +136,6 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
     );
   }
 
-  /// Kolom Pencarian Oranye
   Widget _buildSearchBar() {
     return Container(
       height: 44,
@@ -161,13 +169,11 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
     );
   }
 
-  /// Filter Status: Semua, Baru, Diproses, Selesai
   Widget _buildFilterChips() {
     return Row(
       children: List.generate(_filters.length, (index) {
         final filter = _filters[index];
         final isSelected = filter == _selectedFilter;
-
         return Expanded(
           child: Padding(
             padding: EdgeInsets.only(right: index == _filters.length - 1 ? 0 : 8),
@@ -197,13 +203,14 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
     );
   }
 
-  /// Kartu Pesanan Hijau Sage
+  /// Kartu pesanan sesuai Figma: info kiri, badge status kanan tengah
   Widget _buildOrderCard(Map<String, dynamic> order) {
-    final isDone = order['status'] == 'Selesai';
+    final status = order['status'] as String;
+    final isDone = status == 'Selesai';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: kSage,
         borderRadius: BorderRadius.circular(10),
@@ -216,7 +223,9 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // Info kiri
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,12 +238,12 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   order['service'],
                   style: const TextStyle(fontSize: 12, color: Colors.black87),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   _formatRupiah(order['price']),
                   style: const TextStyle(
@@ -243,7 +252,7 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   order['date'],
                   style: const TextStyle(fontSize: 10, color: Colors.black54),
@@ -251,19 +260,20 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
               ],
             ),
           ),
-          // Badge Status
+
+          // Badge status kanan tengah
           Container(
-            width: 84,
+            width: 80,
             height: 30,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: isDone ? kOrange : kCream,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(5),
             ),
             child: Text(
-              order['status'],
+              status,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
@@ -274,16 +284,12 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
     );
   }
 
-  /// Bottom Navigation Hijau Sage dengan sudut atas melengkung
   Widget _buildBottomNav() {
     return Container(
-      height: 72,
+      height: 68,
       decoration: const BoxDecoration(
         color: kSage,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -298,7 +304,6 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
 
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isActive = _navIndex == index;
-
     return InkWell(
       onTap: () => _onBottomNavTapped(index),
       borderRadius: BorderRadius.circular(12),
@@ -307,18 +312,14 @@ class _RiwayatPesananPageState extends State<RiwayatPesananPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 34,
-              color: isActive ? kOrange : Colors.white,
-            ),
+            Icon(icon, size: 30, color: isActive ? kOrange : Colors.white),
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                color: isActive ? kOrange : Colors.white,
               ),
             ),
           ],

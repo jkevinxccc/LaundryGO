@@ -1,226 +1,146 @@
 import 'package:flutter/material.dart';
-
-void main() => runApp(const TentangApp());
-
-class TentangApp extends StatelessWidget {
-  const TentangApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Tentang LaundryGo',
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily: 'AfacadFlux',
-      ),
-      home: const TentangPage(),
-    );
-  }
-}
+import '../app_logo.dart';
 
 class TentangPage extends StatelessWidget {
   const TentangPage({super.key});
 
-  static const Color kBackgroundColor = Color(0xFFAFCBE3);
-  static const Color kCardColor = Color(0xFFFFF3D0);
-  static const Color kTextColor = Color(0xFF111111);
+  static const Color kBg = Color(0xFFAFCBE2);
+  static const Color kCard = Color(0xFFFDF4D2);
+  static const Color kText = Color(0xFF111111);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBackgroundColor,
+      backgroundColor: kBg,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
                   child: Column(
                     children: [
-                      // Top Bar
+                      // ===== Header =====
                       Padding(
-                        padding: const EdgeInsets.only(
-                          left: 8,
-                          right: 16,
-                          top: 8,
-                          bottom: 4,
-                        ),
+                        padding: const EdgeInsets.fromLTRB(8, 10, 16, 0),
                         child: Row(
                           children: [
                             IconButton(
-                              icon: const Icon(
-                                Icons.arrow_back,
-                                color: kTextColor,
-                                size: 24,
-                              ),
+                              icon: const Icon(Icons.arrow_back_rounded,
+                                  color: kText, size: 24),
                               onPressed: () => Navigator.maybePop(context),
                             ),
-                            const SizedBox(width: 8),
                             const Text(
                               'Tentang',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: kTextColor,
+                                color: kText,
                               ),
                             ),
                           ],
                         ),
                       ),
 
+                      const SizedBox(height: 20),
+
+                      // ===== Logo =====
+                      const Center(
+                        child: AppLogo(size: 90, fontSize: 18),
+                      ),
+
                       const SizedBox(height: 24),
 
-                      // Logo LaundryGo
-                      Center(
-                        child: Image.asset(
-                          'assets/logoo.png',
-                          width: 125,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _buildFallbackLogo(),
+                      // ===== Deskripsi =====
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          'LaundryGo merupakan aplikasi yang memudahkan pelanggan dalam memesan layanan laundry dan memantau status pesanan.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: kText,
+                          ),
                         ),
                       ),
 
                       const SizedBox(height: 28),
 
-                      // Deskripsi Aplikasi
+                      // ===== Card Fitur =====
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 40),
-                        child: RichText(
-                          textAlign: TextAlign.center,
-                          text: const TextSpan(
-                            style: TextStyle(
-                              fontFamily: 'AfacadFlux',
-                              fontSize: 14.5,
-                              height: 1.45,
-                              color: kTextColor,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: 'LaundryGo',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              TextSpan(
-                                text:
-                                    ' merupakan aplikasi yang memudahkan pelanggan dalam memesan layanan laundry dan memantau status pesanan.',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Card Fitur
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
                         child: Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 20,
-                          ),
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                           decoration: BoxDecoration(
-                            color: kCardColor,
-                            borderRadius: BorderRadius.circular(18),
+                            color: kCard,
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Judul Fitur + Icon
+                              // Judul Fitur + ikon
                               Row(
                                 mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   const Text(
                                     'Fitur',
                                     style: TextStyle(
-                                      fontSize: 17,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: kTextColor,
+                                      color: kText,
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   CustomPaint(
                                     size: const Size(20, 18),
-                                    painter: const FeatureTrayIconPainter(
-                                      color: kTextColor,
-                                    ),
+                                    painter: const _TrayIconPainter(color: kText),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 14),
-                              // Daftar Fitur
-                              const Text(
-                                'Pemesanan layanan',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: kTextColor,
-                                  height: 1.5,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              const Text(
-                                'Keranjang',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: kTextColor,
-                                  height: 1.5,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              const Text(
-                                'Riwayat pesanan',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: kTextColor,
-                                  height: 1.5,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              const Text(
-                                'Status pesanan',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: kTextColor,
-                                  height: 1.5,
-                                ),
-                              ),
+                              const SizedBox(height: 12),
+                              const _FeatureItem('Pemesanan layanan'),
+                              const SizedBox(height: 4),
+                              const _FeatureItem('Keranjang'),
+                              const SizedBox(height: 4),
+                              const _FeatureItem('Riwayat pesanan'),
+                              const SizedBox(height: 4),
+                              const _FeatureItem('Status pesanan'),
                             ],
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 40),
 
-                      // Garis Putus-putus
+                      // ===== Garis Putus-putus =====
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 36),
-                        child: _buildDashedLine(),
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        child: const SizedBox(
+                          width: double.infinity,
+                          height: 2,
+                          child: CustomPaint(painter: _DashedLinePainter(color: kText)),
+                        ),
                       ),
 
                       const SizedBox(height: 14),
 
-                      // Versi
+                      // ===== Versi =====
                       const Text(
                         'Versi 1.0.0',
                         style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: kTextColor,
+                          color: kText,
                         ),
                       ),
 
                       const Spacer(),
 
-                      // Copyright Footer
+                      // ===== Copyright =====
                       const Padding(
                         padding: EdgeInsets.only(bottom: 28, top: 20),
                         child: Text(
@@ -228,7 +148,7 @@ class TentangPage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: kTextColor,
+                            color: kText,
                           ),
                         ),
                       ),
@@ -242,66 +162,28 @@ class TentangPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  /// Garis putus-putus mendatar.
-  /// Memakai CustomPaint (bukan LayoutBuilder) supaya aman di dalam IntrinsicHeight.
-  static Widget _buildDashedLine() {
-    return const SizedBox(
-      width: double.infinity,
-      height: 1.6,
-      child: CustomPaint(
-        painter: DashedLinePainter(color: kTextColor),
+class _FeatureItem extends StatelessWidget {
+  final String text;
+  const _FeatureItem(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 14,
+        color: Color(0xFF111111),
+        height: 1.5,
       ),
-    );
-  }
-
-  /// Logo fallback jika assets/logoo.png belum dimuat
-  static Widget _buildFallbackLogo() {
-    Widget tile(Color c, IconData i, {Color iconColor = Colors.white}) =>
-        Container(
-          width: 30,
-          height: 30,
-          decoration: BoxDecoration(
-            color: c,
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Icon(i, size: 18, color: iconColor),
-        );
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Wrap(
-          spacing: 3.5,
-          runSpacing: 3.5,
-          children: [
-            tile(const Color(0xFF7B8B6F), Icons.local_laundry_service),
-            tile(const Color(0xFFDB9559), Icons.checkroom),
-            tile(const Color(0xFFFFE6C7), Icons.waves,
-                iconColor: const Color(0xFFDB9559)),
-            tile(const Color(0xFF3FB1A6), Icons.shopping_basket_outlined),
-          ],
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'LOUNDRYGO',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF3F6FA6),
-            letterSpacing: 0.6,
-          ),
-        ),
-      ],
     );
   }
 }
 
-/// Painter garis putus-putus mendatar (pengganti LayoutBuilder + Row)
-class DashedLinePainter extends CustomPainter {
+class _DashedLinePainter extends CustomPainter {
   final Color color;
-
-  const DashedLinePainter({required this.color});
+  const _DashedLinePainter({required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -329,15 +211,12 @@ class DashedLinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant DashedLinePainter oldDelegate) =>
-      oldDelegate.color != color;
+  bool shouldRepaint(covariant _DashedLinePainter old) => old.color != color;
 }
 
-/// Custom painter untuk icon baki/inbox dengan 3 pancaran kilau (sparkles) di atasnya
-class FeatureTrayIconPainter extends CustomPainter {
+class _TrayIconPainter extends CustomPainter {
   final Color color;
-
-  const FeatureTrayIconPainter({required this.color});
+  const _TrayIconPainter({required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -351,7 +230,6 @@ class FeatureTrayIconPainter extends CustomPainter {
     final double w = size.width;
     final double h = size.height;
 
-    // Gambar nampan/inbox dengan lekukan di bagian tengah depan
     final path = Path();
     path.moveTo(w * 0.12, h * 0.58);
     path.lineTo(w * 0.22, h * 0.90);
@@ -361,27 +239,13 @@ class FeatureTrayIconPainter extends CustomPainter {
     path.lineTo(w * 0.62, h * 0.90);
     path.lineTo(w * 0.78, h * 0.90);
     path.lineTo(w * 0.88, h * 0.58);
-
     canvas.drawPath(path, paint);
 
-    // 3 sinar kilau di atas nampan (sparkles)
-    canvas.drawLine(
-      Offset(w * 0.50, h * 0.48),
-      Offset(w * 0.50, h * 0.24),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(w * 0.38, h * 0.46),
-      Offset(w * 0.26, h * 0.28),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(w * 0.62, h * 0.46),
-      Offset(w * 0.74, h * 0.28),
-      paint,
-    );
+    canvas.drawLine(Offset(w * 0.50, h * 0.48), Offset(w * 0.50, h * 0.24), paint);
+    canvas.drawLine(Offset(w * 0.38, h * 0.46), Offset(w * 0.26, h * 0.28), paint);
+    canvas.drawLine(Offset(w * 0.62, h * 0.46), Offset(w * 0.74, h * 0.28), paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter old) => false;
 }

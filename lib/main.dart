@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'constants/app_colors.dart';
 import 'loading.dart';
 import 'login.dart';
+import 'register.dart';
 import 'User/dashboard.dart';
 import 'User/pesan_layanan.dart';
 import 'User/keranjang.dart';
@@ -48,6 +49,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const LoadingScreen(),
         '/login': (context) => const LoginPage(),
+        '/register': (context) => const RegisterPage(),
         '/dashboard': (context) => const MainPage(),
         '/pesan_layanan': (context) => const PesanLayananPage(),
         '/keranjang': (context) => const KeranjangPage(),

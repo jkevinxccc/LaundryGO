@@ -53,6 +53,47 @@ class SupabaseService {
     }
   }
 
+  /// Registrasi akun Users baru ke tabel Pelanggan
+  static Future<UserModel> register({
+    required String email,
+    required String password,
+    String alamat = 'Alamat Belum Diatur',
+    String noTelp = '-',
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanPassword = password.trim();
+
+    // Cek apakah email sudah terdaftar
+    final existing = await client
+        .from('Pelanggan')
+        .select()
+        .eq('email_user', cleanEmail)
+        .maybeSingle();
+
+    if (existing != null) {
+      throw Exception('Email sudah terdaftar. Silakan gunakan email lain atau login.');
+    }
+
+    final inserted = await client
+        .from('Pelanggan')
+        .insert({
+          'email_user': cleanEmail,
+          'pw_user': cleanPassword,
+          'alamat': alamat,
+          'no_telp': noTelp,
+        })
+        .select()
+        .single();
+
+    return UserModel(
+      id: inserted['id_pelanggan'] as int,
+      email: inserted['email_user'] as String,
+      role: 'Users',
+      alamat: inserted['alamat']?.toString(),
+      noTelp: inserted['no_telp']?.toString(),
+    );
+  }
+
   /// Autentikasi Login terhubung langsung ke tabel Supabase (Pelanggan / Admin)
   static Future<UserModel> login({
     required String email,

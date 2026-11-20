@@ -178,6 +178,34 @@ class _LoginPageState extends State<LoginPage> {
                     _buildLoginButton(),
 
                     const SizedBox(height: 20),
+
+                    // Link ke Register
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Belum punya akun? ',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.darkText,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context)
+                              .pushReplacementNamed('/register'),
+                          child: const Text(
+                            'DAFTAR',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2F88FF),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),

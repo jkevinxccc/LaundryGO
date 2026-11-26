@@ -165,7 +165,13 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
         setState(() {
           _stats = results[0] as Map<String, dynamic>;
           final allOrders = results[1] as List<Map<String, dynamic>>;
-          _recentOrders = allOrders.take(5).toList();
+          // Khusus pesanan baru yang dibuat dari user ('Baru' atau 'Pending').
+          // Jika status sudah diubah menjadi 'Diproses' atau 'Selesai', otomatis hilang dari Pesanan Terbaru.
+          final newOrders = allOrders.where((o) {
+            final st = o['status']?.toString().toLowerCase().trim() ?? '';
+            return st == 'baru' || st == 'pending';
+          }).toList();
+          _recentOrders = newOrders.take(5).toList();
           _isLoading = false;
         });
       }
@@ -309,7 +315,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
                             padding: EdgeInsets.symmetric(vertical: 20),
                             child: Center(
                               child: Text(
-                                'Belum ada pesanan masuk',
+                                'Belum ada pesanan baru masuk',
                                 style: TextStyle(color: Colors.black54),
                               ),
                             ),

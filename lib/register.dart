@@ -11,6 +11,7 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _alamatController = TextEditingController();
@@ -21,6 +22,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _alamatController.dispose();
@@ -29,10 +31,16 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _handleRegister() async {
+    final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final alamat = _alamatController.text.trim();
     final noHp = _noHpController.text.trim();
+
+    if (username.isEmpty) {
+      _showSnackBar('Username wajib diisi', isError: true);
+      return;
+    }
 
     if (email.isEmpty || password.isEmpty) {
       _showSnackBar('Email dan Password wajib diisi', isError: true);
@@ -53,6 +61,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     try {
       await SupabaseService.register(
+        username: username,
         email: email,
         password: password,
         alamat: alamat.isEmpty ? 'Alamat Belum Diatur' : alamat,
@@ -163,6 +172,17 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
 
                   const SizedBox(height: 20),
+
+                  // ===== Username =====
+                  _buildInputField(
+                    controller: _usernameController,
+                    hintText: 'Username',
+                    keyboardType: TextInputType.text,
+                    leadingIcon: Icons.person_rounded,
+                    leadingIconColor: AppColors.emailIcon,
+                  ),
+
+                  const SizedBox(height: 14),
 
                   // ===== Email =====
                   _buildInputField(

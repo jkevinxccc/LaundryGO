@@ -57,11 +57,13 @@ class SupabaseService {
 
   /// Registrasi akun Users baru ke tabel Pelanggan
   static Future<UserModel> register({
+    required String username,
     required String email,
     required String password,
     String alamat = 'Alamat Belum Diatur',
     String noTelp = '-',
   }) async {
+    final cleanUsername = username.trim();
     final cleanEmail = email.trim().toLowerCase();
     final cleanPassword = password.trim();
 
@@ -76,24 +78,43 @@ class SupabaseService {
       throw Exception('Email sudah terdaftar. Silakan gunakan email lain atau login.');
     }
 
-    final inserted = await client
-        .from('Pelanggan')
-        .insert({
-          'email_user': cleanEmail,
-          'pw_user': cleanPassword,
-          'alamat': alamat,
-          'no_telp': noTelp,
-        })
-        .select()
-        .single();
+    final Map<String, dynamic> insertData = {
+      'username': cleanUsername,
+      'email_user': cleanEmail,
+      'pw_user': cleanPassword,
+      'alamat': alamat,
+      'no_telp': noTelp,
+    };
 
-    return UserModel(
+    Map<String, dynamic> inserted;
+    try {
+      inserted = await client
+          .from('Pelanggan')
+          .insert(insertData)
+          .select()
+          .single();
+    } catch (e) {
+      // Jika kolom 'username' belum ditambahkan di Supabase, fallback tanpa kolom username
+      insertData.remove('username');
+      inserted = await client
+          .from('Pelanggan')
+          .insert(insertData)
+          .select()
+          .single();
+    }
+
+    currentUser = UserModel(
       id: inserted['id_pelanggan'] as int,
       email: inserted['email_user'] as String,
       role: 'Users',
+      username: (inserted['username']?.toString().isNotEmpty ?? false)
+          ? inserted['username']?.toString()
+          : cleanUsername,
       alamat: inserted['alamat']?.toString(),
       noTelp: inserted['no_telp']?.toString(),
     );
+
+    return currentUser!;
   }
 
   /// Autentikasi Login terhubung langsung ke tabel Supabase (Pelanggan / Admin)
@@ -121,31 +142,52 @@ class SupabaseService {
             throw Exception('Kata sandi salah. Silakan coba lagi.');
           }
 
+          final rawUsername = data['username']?.toString();
+          final resolvedUsername = (rawUsername != null && rawUsername.isNotEmpty)
+              ? rawUsername
+              : data['email_user'].toString().split('@').first;
+
           currentUser = UserModel(
             id: data['id_pelanggan'] as int,
             email: data['email_user'] as String,
             role: 'Users',
+            username: resolvedUsername,
             alamat: data['alamat']?.toString(),
             noTelp: data['no_telp']?.toString(),
           );
           return currentUser!;
         } else {
           // Jika akun belum terdaftar, otomatis buat akun baru di tabel Pelanggan
-          final inserted = await client
-              .from('Pelanggan')
-              .insert({
-                'email_user': cleanEmail,
-                'pw_user': cleanPassword,
-                'alamat': 'Alamat Belum Diatur',
-                'no_telp': '-',
-              })
-              .select()
-              .single();
+          final defaultUsername = cleanEmail.split('@').first;
+          final Map<String, dynamic> newUserData = {
+            'username': defaultUsername,
+            'email_user': cleanEmail,
+            'pw_user': cleanPassword,
+            'alamat': 'Alamat Belum Diatur',
+            'no_telp': '-',
+          };
+
+          Map<String, dynamic> inserted;
+          try {
+            inserted = await client
+                .from('Pelanggan')
+                .insert(newUserData)
+                .select()
+                .single();
+          } catch (_) {
+            newUserData.remove('username');
+            inserted = await client
+                .from('Pelanggan')
+                .insert(newUserData)
+                .select()
+                .single();
+          }
 
           currentUser = UserModel(
             id: inserted['id_pelanggan'] as int,
             email: inserted['email_user'] as String,
             role: 'Users',
+            username: inserted['username']?.toString() ?? defaultUsername,
             alamat: inserted['alamat']?.toString(),
             noTelp: inserted['no_telp']?.toString(),
           );
@@ -353,13 +395,15 @@ class SupabaseService {
         final int idPelanggan = row['id_pelanggan'] as int? ?? 0;
         final pel = pelangganMap[idPelanggan];
 
-        // Format nama pelanggan
+        // Format nama pelanggan / username
         String customerName = 'Pelanggan';
         if (pel != null) {
-          if (pel['nama_pelanggan'] != null && pel['nama_pelanggan'].toString().isNotEmpty) {
-            customerName = pel['nama_pelanggan'].toString();
-          } else if (pel['username'] != null && pel['username'].toString().isNotEmpty) {
-            customerName = pel['username'].toString();
+          final uName = pel['username']?.toString().trim();
+          final pName = pel['nama_pelanggan']?.toString().trim();
+          if (uName != null && uName.isNotEmpty) {
+            customerName = uName;
+          } else if (pName != null && pName.isNotEmpty) {
+            customerName = pName;
           } else {
             final email = pel['email_user']?.toString() ?? '';
             if (email.contains('@')) {
@@ -440,6 +484,7 @@ class SupabaseService {
           'id': '#LG${idPesanan.toString().padLeft(4, '0')}',
           'raw_id': idPesanan,
           'name': customerName,
+          'username': customerName,
           'customer_email': pel?['email_user']?.toString() ?? '-',
           'customer_phone': pel?['no_telp']?.toString() ?? '-',
           'customer_address': pel?['alamat']?.toString() ?? '-',

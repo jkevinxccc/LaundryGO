@@ -395,23 +395,22 @@ class SupabaseService {
         final int idPelanggan = row['id_pelanggan'] as int? ?? 0;
         final pel = pelangganMap[idPelanggan];
 
-        // Format nama pelanggan / username
-        String customerName = 'Pelanggan';
+        // Format username pelanggan
+        String customerName = 'User';
         if (pel != null) {
           final uName = pel['username']?.toString().trim();
           final pName = pel['nama_pelanggan']?.toString().trim();
+          final email = pel['email_user']?.toString().trim() ?? '';
+
           if (uName != null && uName.isNotEmpty) {
             customerName = uName;
           } else if (pName != null && pName.isNotEmpty) {
             customerName = pName;
-          } else {
-            final email = pel['email_user']?.toString() ?? '';
-            if (email.contains('@')) {
-              final prefix = email.split('@').first;
-              customerName = prefix.isNotEmpty
-                  ? prefix[0].toUpperCase() + prefix.substring(1)
-                  : 'Pelanggan';
-            }
+          } else if (email.isNotEmpty) {
+            final base = email.contains('@') ? email.split('@').first : email;
+            customerName = base.isNotEmpty
+                ? base[0].toUpperCase() + base.substring(1)
+                : 'User';
           }
         }
 

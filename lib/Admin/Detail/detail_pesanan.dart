@@ -147,6 +147,11 @@ class _DetailPesananPageState extends State<DetailPesananPage> {
                         color: Colors.white,
                       ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Username: ${order['name']}',
+                      style: const TextStyle(fontSize: 11, color: Colors.white70),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       order['service'],

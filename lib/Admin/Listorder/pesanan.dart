@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../Detail/detail_pesanan.dart';
+import '../../services/supabase_service.dart';
 
 class PesananPage extends StatefulWidget {
   const PesananPage({super.key});
@@ -16,46 +18,68 @@ class _PesananPageState extends State<PesananPage> {
   static const Color kCream = Color(0xFFFFF3D0);
 
   final List<String> _filters = ['Semua', 'Pending', 'Diproses', 'Selesai'];
-  String _selectedFilter = 'Diproses';
+  String _selectedFilter = 'Semua';
   String _query = '';
 
-  // Data contoh (ganti dengan data dari API / database kamu)
-  final List<Map<String, dynamic>> _orders = [
-    {
-      'id': '#LG0012',
-      'name': 'KEVIN',
-      'service': 'Cuci Kering - 2 kg',
-      'price': 16000,
-      'date': '12 Sep 2025, 10:30',
-      'status': 'Pending',
-      'items': [
-        {'name': 'Cuci Kering', 'qty': 2, 'pricePerKg': 8000, 'icon': Icons.checkroom},
-        {'name': 'Setrika Saja', 'qty': 1, 'pricePerKg': 7000, 'icon': Icons.iron},
-      ],
-    },
-    for (final n in ['Adit', 'Marsha', 'Adhon', 'Maurin'])
-      {
-        'id': '#LG0012',
-        'name': n,
-        'service': 'Cuci Kering - 2 kg',
-        'price': 16000,
-        'date': '12 Sep 2025, 10:30',
-        'status': 'Diproses',
-        'items': [
-          {'name': 'Cuci Kering', 'qty': 2, 'pricePerKg': 8000, 'icon': Icons.checkroom},
-        ],
-      },
-  ];
+  List<Map<String, dynamic>> _orders = [];
+  bool _isLoading = true;
+  StreamSubscription? _realtimeSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOrders();
+    _initRealtime();
+  }
+
+  @override
+  void dispose() {
+    _realtimeSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _initRealtime() {
+    try {
+      _realtimeSubscription = SupabaseService.streamPesanan().listen((_) {
+        if (mounted) {
+          _loadOrders(silent: true);
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _loadOrders({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
+    final data = await SupabaseService.getAdminOrders();
+    if (mounted) {
+      setState(() {
+        _orders = data;
+        _isLoading = false;
+      });
+    }
+  }
 
   List<Map<String, dynamic>> get _filteredOrders {
     final target = _selectedFilter;
     final q = _query.toLowerCase();
 
     return _orders.where((o) {
-      final matchFilter = _selectedFilter == 'Semua' || o['status'] == target;
+      final st = (o['status'] ?? '').toString();
+      bool matchFilter = false;
+      if (_selectedFilter == 'Semua') {
+        matchFilter = true;
+      } else if (_selectedFilter == 'Pending') {
+        matchFilter = (st == 'Pending' || st == 'Baru');
+      } else {
+        matchFilter = (st.toLowerCase() == target.toLowerCase());
+      }
+
       final matchQuery = q.isEmpty ||
-          (o['name'] as String).toLowerCase().contains(q) ||
-          (o['id'] as String).toLowerCase().contains(q);
+          (o['name'] as String? ?? '').toLowerCase().contains(q) ||
+          (o['id'] as String? ?? '').toLowerCase().contains(q) ||
+          (o['service'] as String? ?? '').toLowerCase().contains(q);
       return matchFilter && matchQuery;
     }).toList();
   }
@@ -71,12 +95,12 @@ class _PesananPageState extends State<PesananPage> {
   }
 
   Future<void> _openDetail(Map<String, dynamic> order) async {
-    debugPrint('Klik pesanan: ${order['id']} - ${order['name']}');
     final newStatus = await Navigator.of(context, rootNavigator: true).push<String>(
       MaterialPageRoute(builder: (_) => DetailPesananPage(order: order)),
     );
     if (newStatus != null) {
       setState(() => order['status'] = newStatus);
+      _loadOrders(silent: true);
     }
   }
 
@@ -134,18 +158,21 @@ class _PesananPageState extends State<PesananPage> {
                       child: GestureDetector(
                         onTap: () => setState(() => _selectedFilter = f),
                         child: Container(
-                          height: 30,
+                          height: 32,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: selected ? kOrange : kCream,
                             borderRadius: BorderRadius.circular(6),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black12, blurRadius: 2, offset: Offset(0, 1)),
+                            ],
                           ),
                           child: Text(
                             f,
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: selected ? Colors.white : Colors.black,
+                              fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                              color: selected ? Colors.white : Colors.black87,
                             ),
                           ),
                         ),
@@ -154,19 +181,41 @@ class _PesananPageState extends State<PesananPage> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
 
-              // ===== List Pesanan =====
+              // ===== List Pesanan Realtime =====
               Expanded(
-                child: orders.isEmpty
-                    ? const Center(child: Text('Tidak ada pesanan'))
-                    : ListView.separated(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.only(bottom: 16),
-                        itemCount: orders.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (_, i) => _buildOrderCard(orders[i]),
-                      ),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: kOrange))
+                    : orders.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.inbox_outlined, size: 48, color: Colors.black38),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _query.isEmpty
+                                      ? 'Tidak ada pesanan $_selectedFilter'
+                                      : 'Pesanan tidak ditemukan',
+                                  style: const TextStyle(color: Colors.black54),
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            color: kOrange,
+                            onRefresh: () => _loadOrders(),
+                            child: ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(
+                                parent: BouncingScrollPhysics(),
+                              ),
+                              padding: const EdgeInsets.only(bottom: 24),
+                              itemCount: orders.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                              itemBuilder: (context, i) => _buildOrderCard(orders[i]),
+                            ),
+                          ),
               ),
             ],
           ),
@@ -175,16 +224,25 @@ class _PesananPageState extends State<PesananPage> {
     );
   }
 
-  /// Kartu pesanan hijau sage
   Widget _buildOrderCard(Map<String, dynamic> order) {
+    String displayStatus = order['status'] ?? 'Pending';
+    if (displayStatus == 'Baru') displayStatus = 'Pending';
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _openDetail(order),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: kSage,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -202,45 +260,47 @@ class _PesananPageState extends State<PesananPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    order['service'],
-                    style: const TextStyle(fontSize: 13, color: Colors.white),
+                    order['service'] ?? '',
+                    style: const TextStyle(fontSize: 12, color: Colors.white),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _rupiah(order['price']),
+                    _rupiah(order['price'] as int? ?? 0),
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    order['date'],
-                    style: const TextStyle(fontSize: 10, color: Colors.white),
+                    order['date'] ?? '',
+                    style: const TextStyle(fontSize: 10, color: Colors.white70),
                   ),
                 ],
               ),
             ),
-
-            // Tombol status krem
+            // Tombol / Badge Status (warna krem seperti mockup)
             Container(
-              width: 90,
-              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: kCream,
                 borderRadius: BorderRadius.circular(6),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
                 ],
               ),
               child: Text(
-                order['status'],
+                displayStatus,
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
             ),

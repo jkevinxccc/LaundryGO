@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/supabase_service.dart';
 
 class DetailPesananPage extends StatefulWidget {
   /// Data pesanan dari halaman list (Map), isinya:
@@ -20,18 +21,36 @@ class _DetailPesananPageState extends State<DetailPesananPage> {
 
   final List<String> _statuses = ['Pending', 'Diproses', 'Selesai'];
   late String _selectedStatus;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedStatus = widget.order['status'];
+    final st = widget.order['status']?.toString() ?? 'Pending';
+    if (st == 'Baru' || st == 'Pending') {
+      _selectedStatus = 'Pending';
+    } else if (_statuses.contains(st)) {
+      _selectedStatus = st;
+    } else {
+      _selectedStatus = 'Pending';
+    }
   }
 
   List<Map<String, dynamic>> get _items =>
       List<Map<String, dynamic>>.from(widget.order['items'] ?? []);
 
-  int get _subtotal => _items.fold(
-      0, (sum, item) => sum + (item['qty'] as int) * (item['pricePerKg'] as int));
+  int get _subtotal {
+    if (_items.isEmpty) return widget.order['price'] as int? ?? 0;
+    return _items.fold(
+      0, (sum, item) {
+        final sub = item['subTotal'] as int?;
+        if (sub != null && sub > 0) return sum + sub;
+        final qty = (item['qty'] as int?) ?? 1;
+        final price = (item['pricePerKg'] as int?) ?? 0;
+        return sum + (qty * price);
+      },
+    );
+  }
 
   String _rupiah(int value) {
     final s = value.toString();
@@ -43,11 +62,37 @@ class _DetailPesananPageState extends State<DetailPesananPage> {
     return 'Rp $buffer';
   }
 
-  void _handleSave() {
-    // TODO: simpan ke API / database di sini
+  Future<void> _handleSave() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    final rawId = widget.order['raw_id'] as int? ??
+        int.tryParse(widget.order['id'].toString().replaceAll(RegExp(r'[^0-9]'), '')) ??
+        0;
+
+    if (rawId > 0) {
+      try {
+        await SupabaseService.updateStatusPesanan(rawId, _selectedStatus);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal mengubah status: $e'),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          setState(() => _isSaving = false);
+          return;
+        }
+      }
+    }
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Status diubah menjadi $_selectedStatus'),
+        content: Text('Status pesanan ${widget.order['id']} berhasil diubah menjadi $_selectedStatus'),
+        backgroundColor: const Color(0xFF2DBC9E),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -121,6 +166,27 @@ class _DetailPesananPageState extends State<DetailPesananPage> {
                       order['date'],
                       style: const TextStyle(fontSize: 10, color: Colors.white),
                     ),
+                    if (order['payment_method'] != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Pembayaran: ${order['payment_method']}',
+                        style: const TextStyle(fontSize: 11, color: Colors.white70),
+                      ),
+                    ],
+                    if (order['customer_phone'] != null && order['customer_phone'] != '-') ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'No. Telp: ${order['customer_phone']}',
+                        style: const TextStyle(fontSize: 11, color: Colors.white70),
+                      ),
+                    ],
+                    if (order['customer_address'] != null && order['customer_address'] != '-') ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Alamat: ${order['customer_address']}',
+                        style: const TextStyle(fontSize: 11, color: Colors.white70),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -240,22 +306,32 @@ class _DetailPesananPageState extends State<DetailPesananPage> {
                 width: double.infinity,
                 height: 44,
                 child: ElevatedButton(
-                  onPressed: _handleSave,
+                  onPressed: _isSaving ? null : _handleSave,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kOrange,
+                    disabledBackgroundColor: kOrange.withOpacity(0.6),
                     elevation: 3,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text(
-                    'Ubah Status pesanan',
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Ubah Status pesanan',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
 
@@ -267,23 +343,25 @@ class _DetailPesananPageState extends State<DetailPesananPage> {
     );
   }
 
-  /// Satu baris item laundry (ikon + nama + qty x harga + total)
+  /// Satu baris item laundry (ikon + nama + catatan + qty x harga + total)
   Widget _buildItemRow(Map<String, dynamic> item) {
-    final int qty = item['qty'];
-    final int pricePerKg = item['pricePerKg'];
+    final int qty = (item['qty'] as int?) ?? 1;
+    final int pricePerKg = (item['pricePerKg'] as int?) ?? 0;
+    final String catatan = item['catatan']?.toString() ?? '';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 46,
-            height: 38,
+            height: 46,
             decoration: BoxDecoration(
               color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(item['icon'] as IconData, color: Colors.blue, size: 26),
+            child: Icon(item['icon'] as IconData? ?? Icons.local_laundry_service_outlined, color: Colors.blue, size: 26),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -291,24 +369,35 @@ class _DetailPesananPageState extends State<DetailPesananPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['name'],
+                  item['name']?.toString() ?? 'Layanan',
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
                   ),
                 ),
+                if (catatan.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Catatan: $catatan',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       '$qty Kg x ${_rupiah(pricePerKg)}',
-                      style: const TextStyle(fontSize: 10, color: Colors.black),
+                      style: const TextStyle(fontSize: 11, color: Colors.black87),
                     ),
                     Text(
                       _rupiah(qty * pricePerKg),
-                      style: const TextStyle(fontSize: 10, color: Colors.black),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black),
                     ),
                   ],
                 ),

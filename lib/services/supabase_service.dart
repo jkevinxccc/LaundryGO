@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Model pengguna yang sedang login
@@ -307,6 +307,216 @@ class SupabaseService {
     } catch (e) {
       if (kDebugMode) print('Error fetching Pesanan: $e');
       return [];
+    }
+  }
+
+  /// Stream realtime untuk tabel Pesanan
+  static Stream<List<Map<String, dynamic>>> streamPesanan() {
+    return client.from('Pesanan').stream(primaryKey: ['id_pesanan']);
+  }
+
+  /// Update status pesanan di Supabase
+  static Future<void> updateStatusPesanan(int idPesanan, String newStatus) async {
+    await client
+        .from('Pesanan')
+        .update({'status': newStatus})
+        .eq('id_pesanan', idPesanan);
+  }
+
+  /// Mengambil data lengkap pesanan untuk Admin (beserta info Pelanggan & Layanan)
+  static Future<List<Map<String, dynamic>>> getAdminOrders() async {
+    try {
+      final List<dynamic> pesananList = await client
+          .from('Pesanan')
+          .select('*, Detail_Pesanan(*)')
+          .order('id_pesanan', ascending: false);
+
+      // Ambil Pelanggan
+      final List<dynamic> pelangganList = await client.from('Pelanggan').select();
+      final Map<int, Map<String, dynamic>> pelangganMap = {
+        for (final p in pelangganList)
+          (p['id_pelanggan'] as int): Map<String, dynamic>.from(p as Map)
+      };
+
+      // Ambil Layanan
+      final List<dynamic> layananList =
+          await client.from('Layanan').select('id_layanan, nama_layanan, harga_layanan');
+      final Map<int, Map<String, dynamic>> layananMap = {
+        for (final l in layananList)
+          (l['id_layanan'] as int): Map<String, dynamic>.from(l as Map)
+      };
+
+      return pesananList.map<Map<String, dynamic>>((raw) {
+        final row = Map<String, dynamic>.from(raw as Map);
+        final int idPesanan = row['id_pesanan'] as int;
+        final int idPelanggan = row['id_pelanggan'] as int? ?? 0;
+        final pel = pelangganMap[idPelanggan];
+
+        // Format nama pelanggan
+        String customerName = 'Pelanggan';
+        if (pel != null) {
+          if (pel['nama_pelanggan'] != null && pel['nama_pelanggan'].toString().isNotEmpty) {
+            customerName = pel['nama_pelanggan'].toString();
+          } else if (pel['username'] != null && pel['username'].toString().isNotEmpty) {
+            customerName = pel['username'].toString();
+          } else {
+            final email = pel['email_user']?.toString() ?? '';
+            if (email.contains('@')) {
+              final prefix = email.split('@').first;
+              customerName = prefix.isNotEmpty
+                  ? prefix[0].toUpperCase() + prefix.substring(1)
+                  : 'Pelanggan';
+            }
+          }
+        }
+
+        // Format tanggal
+        final rawDate = row['tanggal_order']?.toString() ?? '';
+        String formattedDate = rawDate;
+        if (rawDate.isNotEmpty) {
+          try {
+            final dt = DateTime.parse(rawDate).toLocal();
+            const months = [
+              '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+              'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+            ];
+            final day = dt.day;
+            final m = (dt.month >= 1 && dt.month <= 12) ? months[dt.month] : 'Bln';
+            final yr = dt.year;
+            final hr = dt.hour.toString().padLeft(2, '0');
+            final mn = dt.minute.toString().padLeft(2, '0');
+            if (dt.hour == 0 && dt.minute == 0) {
+              formattedDate = '$day $m $yr';
+            } else {
+              formattedDate = '$day $m $yr, $hr:$mn';
+            }
+          } catch (_) {
+            formattedDate = rawDate;
+          }
+        }
+
+        // Parse detail items
+        final List<dynamic> detailsRaw = (row['Detail_Pesanan'] as List?) ?? [];
+        final List<Map<String, dynamic>> parsedItems = [];
+        String mainServiceName = '';
+        int totalKg = 0;
+
+        for (final d in detailsRaw) {
+          final detail = Map<String, dynamic>.from(d as Map);
+          final idL = detail['id_layanan'] as int? ?? 1;
+          final lay = layananMap[idL];
+          final String sName = lay != null ? (lay['nama_layanan'] as String) : 'Cuci Kering';
+          final int pricePerKg = lay != null ? (lay['harga_layanan'] as int) : 8000;
+          final int subTotal = detail['sub_total'] as int? ?? pricePerKg;
+          final int qty = pricePerKg > 0 ? (subTotal / pricePerKg).round() : 1;
+          totalKg += qty;
+
+          if (mainServiceName.isEmpty) {
+            mainServiceName = sName;
+          }
+
+          parsedItems.add({
+            'name': sName,
+            'qty': qty,
+            'pricePerKg': pricePerKg,
+            'subTotal': subTotal,
+            'catatan': detail['catatan']?.toString() ?? '',
+            'icon': _getServiceIcon(idL),
+          });
+        }
+
+        if (mainServiceName.isEmpty) {
+          mainServiceName = 'Cuci Kering';
+        }
+
+        final serviceSummary = totalKg > 0
+            ? '$mainServiceName - $totalKg kg'
+            : mainServiceName;
+
+        final rawStatus = row['status']?.toString() ?? 'Baru';
+
+        return {
+          'id': '#LG${idPesanan.toString().padLeft(4, '0')}',
+          'raw_id': idPesanan,
+          'name': customerName,
+          'customer_email': pel?['email_user']?.toString() ?? '-',
+          'customer_phone': pel?['no_telp']?.toString() ?? '-',
+          'customer_address': pel?['alamat']?.toString() ?? '-',
+          'service': serviceSummary,
+          'price': row['total_harga'] as int? ?? 0,
+          'date': formattedDate,
+          'status': rawStatus,
+          'raw_status': rawStatus,
+          'payment_method': (row['id_payment'] == 2) ? 'QRIS' : 'Cash',
+          'items': parsedItems,
+        };
+      }).toList();
+    } catch (e) {
+      if (kDebugMode) print('Error fetching Admin orders: $e');
+      return [];
+    }
+  }
+
+  /// Icon helper untuk Layanan
+  static IconData _getServiceIcon(int idLayanan) {
+    switch (idLayanan) {
+      case 1:
+        return Icons.local_laundry_service_outlined;
+      case 2:
+        return Icons.checkroom_rounded;
+      case 3:
+        return Icons.iron_outlined;
+      case 4:
+        return Icons.bolt_rounded;
+      default:
+        return Icons.local_laundry_service_outlined;
+    }
+  }
+
+  /// Mengambil data statistik untuk Dashboard Admin
+  static Future<Map<String, dynamic>> getAdminDashboardStats() async {
+    try {
+      final pesananRes = await client.from('Pesanan').select('id_pesanan, total_harga, status');
+      final pelangganRes = await client.from('Pelanggan').select('id_pelanggan');
+
+      final List<dynamic> pesanan = pesananRes as List;
+      final int totalPemesanan = pesanan.length;
+
+      int totalSelesai = 0;
+      int totalPendapatan = 0;
+
+      for (final p in pesanan) {
+        final st = p['status']?.toString().toLowerCase() ?? '';
+        final harga = p['total_harga'] as int? ?? 0;
+        if (st == 'selesai') {
+          totalSelesai++;
+          totalPendapatan += harga;
+        }
+      }
+
+      // Jika belum ada pesanan yang berstatus selesai, hitung total omset dari seluruh pesanan
+      if (totalPendapatan == 0) {
+        for (final p in pesanan) {
+          totalPendapatan += (p['total_harga'] as int? ?? 0);
+        }
+      }
+
+      final int totalPelanggan = (pelangganRes as List).length;
+
+      return {
+        'totalPemesanan': totalPemesanan,
+        'totalSelesai': totalSelesai,
+        'totalPelanggan': totalPelanggan,
+        'totalPendapatan': totalPendapatan,
+      };
+    } catch (e) {
+      if (kDebugMode) print('Error fetching dashboard stats: $e');
+      return {
+        'totalPemesanan': 0,
+        'totalSelesai': 0,
+        'totalPelanggan': 0,
+        'totalPendapatan': 0,
+      };
     }
   }
 }

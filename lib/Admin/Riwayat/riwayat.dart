@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../Detail/detail_pesanan.dart';
+import '../../services/supabase_service.dart';
 
 class RiwayatPage extends StatefulWidget {
   const RiwayatPage({super.key});
@@ -13,38 +16,68 @@ class _RiwayatPageState extends State<RiwayatPage> {
   static const Color kSage = Color(0xFF9BA87A);
   static const Color kOrange = Color(0xFFDE9154);
 
-  // Data dummy (ganti dengan data dari API / database)
-  final List<Map<String, dynamic>> _orders = [
-    {
-      'id': '#LG0012',
-      'name': 'KEVIN',
-      'service': 'Cuci Kering - 2 kg',
-      'price': 16000,
-      'date': '12 Sep 2025, 10:30',
-      'status': 'Selesai',
-    },
-    {
-      'id': '#LG0012',
-      'name': '',
-      'service': 'Cuci Kering - 2 kg',
-      'price': 16000,
-      'date': '12 Sep 2025, 10:30',
-      'status': 'Selesai',
-    },
-  ];
+  List<Map<String, dynamic>> _orders = [];
+  bool _isLoading = true;
+  StreamSubscription? _realtimeSubscription;
 
-  // Format rupiah: 16000 -> "Rp 16,000"
-  String _rupiah(int value) {
-    final s = value.toString().replaceAllMapped(
-          RegExp(r'\B(?=(\d{3})+(?!\d))'),
-          (m) => ',',
-        );
-    return 'Rp $s';
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+    _initRealtime();
   }
 
-  void _openDetail(Map<String, dynamic> order) {
-    // TODO: navigasi ke halaman detail
-    // Navigator.push(context, MaterialPageRoute(builder: (_) => DetailPage(order: order)));
+  @override
+  void dispose() {
+    _realtimeSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _initRealtime() {
+    try {
+      _realtimeSubscription = SupabaseService.streamPesanan().listen((_) {
+        if (mounted) {
+          _loadHistory(silent: true);
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _loadHistory({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
+    final allOrders = await SupabaseService.getAdminOrders();
+    final completedOrders = allOrders.where((o) {
+      final st = (o['status'] ?? '').toString().toLowerCase();
+      return st == 'selesai';
+    }).toList();
+
+    if (mounted) {
+      setState(() {
+        _orders = completedOrders;
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _rupiah(int value) {
+    final s = value.toString();
+    final buffer = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(s[i]);
+    }
+    return 'Rp $buffer';
+  }
+
+  Future<void> _openDetail(Map<String, dynamic> order) async {
+    final newStatus = await Navigator.of(context, rootNavigator: true).push<String>(
+      MaterialPageRoute(builder: (_) => DetailPesananPage(order: order)),
+    );
+    if (newStatus != null) {
+      _loadHistory(silent: true);
+    }
   }
 
   @override
@@ -82,13 +115,37 @@ class _RiwayatPageState extends State<RiwayatPage> {
 
               // List riwayat
               Expanded(
-                child: ListView.separated(
-                  padding: EdgeInsets.zero,
-                  itemCount: _orders.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) =>
-                      _buildOrderCard(_orders[index]),
-                ),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: kOrange))
+                    : _orders.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.history_toggle_off_rounded,
+                                    size: 48, color: Colors.black38),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Belum ada pesanan yang selesai.',
+                                  style: TextStyle(color: Colors.black54),
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            color: kOrange,
+                            onRefresh: () => _loadHistory(),
+                            child: ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(
+                                parent: BouncingScrollPhysics(),
+                              ),
+                              padding: const EdgeInsets.only(bottom: 24),
+                              itemCount: _orders.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 14),
+                              itemBuilder: (context, index) =>
+                                  _buildOrderCard(_orders[index]),
+                            ),
+                          ),
               ),
             ],
           ),
@@ -106,10 +163,17 @@ class _RiwayatPageState extends State<RiwayatPage> {
       behavior: HitTestBehavior.opaque,
       onTap: () => _openDetail(order),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: kSage,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -127,22 +191,22 @@ class _RiwayatPageState extends State<RiwayatPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    order['service'],
-                    style: const TextStyle(fontSize: 13, color: Colors.white),
+                    order['service'] ?? '',
+                    style: const TextStyle(fontSize: 12, color: Colors.white),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _rupiah(order['price']),
+                    _rupiah(order['price'] as int? ?? 0),
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    order['date'],
-                    style: const TextStyle(fontSize: 10, color: Colors.white),
+                    order['date'] ?? '',
+                    style: const TextStyle(fontSize: 10, color: Colors.white70),
                   ),
                 ],
               ),
@@ -150,8 +214,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
 
             // Tombol status (oranye sesuai desain riwayat)
             Container(
-              width: 90,
-              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: kOrange,
@@ -159,17 +222,17 @@ class _RiwayatPageState extends State<RiwayatPage> {
                 boxShadow: const [
                   BoxShadow(
                     color: Colors.black26,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
                   ),
                 ],
               ),
               child: Text(
-                order['status'],
+                order['status'] ?? 'Selesai',
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
             ),

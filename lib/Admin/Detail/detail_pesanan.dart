@@ -309,7 +309,7 @@ class _DetailPesananPageState extends State<DetailPesananPage> {
                   onPressed: _isSaving ? null : _handleSave,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kOrange,
-                    disabledBackgroundColor: kOrange.withOpacity(0.6),
+                    disabledBackgroundColor: kOrange.withAlpha(153),
                     elevation: 3,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),

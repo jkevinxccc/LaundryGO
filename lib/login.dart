@@ -76,10 +76,14 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
 
-      // Navigasi ke Dashboard
+      // Navigasi ke Dashboard sesuai Role
       Future.delayed(const Duration(milliseconds: 300), () {
         if (!mounted) return;
-        Navigator.of(context).pushReplacementNamed('/dashboard');
+        if (user.role == 'Admin' || _selectedRole == 'Admin') {
+          Navigator.of(context).pushReplacementNamed('/admin_dashboard');
+        } else {
+          Navigator.of(context).pushReplacementNamed('/dashboard');
+        }
       });
     } catch (e) {
       if (!mounted) return;

@@ -7,7 +7,9 @@ import 'register.dart';
 import 'User/dashboard.dart';
 import 'User/pesan_layanan.dart';
 import 'User/keranjang.dart';
+import 'User/pembayaran_qris.dart';
 import 'User/riwayat_pesanan.dart';
+import 'Admin/Beranda/beranda.dart';
 import 'services/supabase_service.dart';
 
 void main() async {
@@ -51,8 +53,10 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/dashboard': (context) => const MainPage(),
+        '/admin_dashboard': (context) => const AdminMainPage(),
         '/pesan_layanan': (context) => const PesanLayananPage(),
         '/keranjang': (context) => const KeranjangPage(),
+        '/pembayaran_qris': (context) => const PembayaranQrisPage(),
         '/riwayat_pesanan': (context) => const RiwayatPesananPage(),
       },
     );

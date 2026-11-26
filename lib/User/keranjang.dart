@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'cart_state.dart';
 import '../services/supabase_service.dart';
+import 'pembayaran_qris.dart';
+import 'dashboard.dart';
 
 class KeranjangPage extends StatefulWidget {
   const KeranjangPage({super.key});
@@ -21,7 +23,7 @@ class _KeranjangPageState extends State<KeranjangPage> {
   static const Color kDropdownSelected = Color(0xFFFFD983);
   static const Color kDropdownBlue = Color(0xFFA8C7FA);
 
-  String _selectedPayment = 'Cash';
+  String _selectedPayment = 'Payment';
   bool _isPaymentOpen = false;
 
   final Map<String, TextEditingController> _noteControllers = {};
@@ -59,6 +61,18 @@ class _KeranjangPageState extends State<KeranjangPage> {
       return;
     }
 
+    // Validasi pemilihan payment
+    if (_selectedPayment == 'Payment') {
+      setState(() => _isPaymentOpen = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan pilih metode pembayaran terlebih dahulu.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     // Save notes
     for (var item in _cart.cartItems) {
       final ctrl = _noteControllers[item.id];
@@ -67,8 +81,17 @@ class _KeranjangPageState extends State<KeranjangPage> {
       }
     }
 
-    // --- Simpan ke Supabase ---
-    // Mapping id lokal → id_layanan di Supabase
+    // Jika user memilih pembayaran QRIS -> Alihkan ke halaman Pembayaran QRIS
+    if (_selectedPayment == 'Qris') {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const PembayaranQrisPage(),
+        ),
+      );
+      return;
+    }
+
+    // Jika user memilih Cash -> Simpan ke Supabase dan langsung alihkan ke halaman pesanan
     const idMap = {
       'cuci_kering': 1,
       'cuci_setrika': 2,
@@ -97,7 +120,7 @@ class _KeranjangPageState extends State<KeranjangPage> {
     try {
       await SupabaseService.buatPesanan(
         items: itemsToSave,
-        metodePembayaran: _selectedPayment,
+        metodePembayaran: 'Cash',
       );
 
       if (!mounted) return;
@@ -106,8 +129,21 @@ class _KeranjangPageState extends State<KeranjangPage> {
       // Clear cart setelah berhasil
       _cart.clearCart();
 
-      // Tampilkan Dialog Checkout Berhasil
-      _showSuccessDialog();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pesanan berhasil dibuat!'),
+          backgroundColor: Color(0xFF2DBC9E),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      // Langsung arahkan ke halaman Pesanan (tab Pesanan di MainPage)
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const MainPage(initialIndex: 1),
+        ),
+        (route) => false,
+      );
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop(); // tutup loading
@@ -119,106 +155,6 @@ class _KeranjangPageState extends State<KeranjangPage> {
         ),
       );
     }
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kCream,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Color(0xFF2DBC9E), size: 28),
-            SizedBox(width: 10),
-            Text(
-              'Pesanan Berhasil!',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Pesanan laundry Anda telah diterima dan akan segera diproses.',
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Metode Pembayaran:',
-                          style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      Text(
-                        _selectedPayment,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Status:',
-                          style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      Text(
-                        'Baru',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF97A87A),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kOrange,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: () {
-                Navigator.of(ctx).pop(); // close dialog
-                Navigator.of(context).popUntil(
-                  (route) => route.isFirst || route.settings.name == '/dashboard',
-                );
-              },
-              child: const Text(
-                'Kembali ke Beranda',
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -359,23 +295,24 @@ class _KeranjangPageState extends State<KeranjangPage> {
                     // Baris Payment Selector
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Payment',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Payment',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                        _buildPaymentDropdown(),
+                        _isPaymentOpen
+                            ? _buildPaymentExpandedMenu()
+                            : _buildPaymentDropdown(),
                       ],
                     ),
-
-                    if (_isPaymentOpen) ...[
-                      const SizedBox(height: 8),
-                      _buildPaymentOptionsList(),
-                    ],
 
                     const SizedBox(height: 16),
 
@@ -558,7 +495,7 @@ class _KeranjangPageState extends State<KeranjangPage> {
   /// Tombol Pembuka Dropdown Payment
   Widget _buildPaymentDropdown() {
     return InkWell(
-      onTap: () => setState(() => _isPaymentOpen = !_isPaymentOpen),
+      onTap: () => setState(() => _isPaymentOpen = true),
       borderRadius: BorderRadius.circular(6),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -570,7 +507,7 @@ class _KeranjangPageState extends State<KeranjangPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              _selectedPayment.isEmpty ? 'Payment' : _selectedPayment,
+              _selectedPayment,
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -578,8 +515,8 @@ class _KeranjangPageState extends State<KeranjangPage> {
               ),
             ),
             const SizedBox(width: 4),
-            Icon(
-              _isPaymentOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
               size: 18,
               color: Colors.black87,
             ),
@@ -589,62 +526,112 @@ class _KeranjangPageState extends State<KeranjangPage> {
     );
   }
 
-  /// List Opsi Dropdown Sesuai Gambar (Dro... preview di gambar)
-  Widget _buildPaymentOptionsList() {
+  /// Menu Dropdown Terbuka Sesuai Preview Gambar Figma
+  Widget _buildPaymentExpandedMenu() {
     return Container(
-      width: double.infinity,
+      width: 105,
       decoration: BoxDecoration(
         color: kCream,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildPaymentOptionItem('Cash', isFirst: true),
-          const Divider(height: 1, thickness: 0.5, color: Colors.black12),
-          _buildPaymentOptionItem('Qris', isLast: true),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentOptionItem(String method, {bool isFirst = false, bool isLast = false}) {
-    final isSelected = _selectedPayment == method;
-    // Pada gambar, opsi yang dipilih diberi warna latar (kuning soft / biru soft)
-    final Color bgColor = isSelected ? (method == 'Qris' ? kDropdownBlue : kDropdownSelected) : Colors.transparent;
-
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedPayment = method;
-          _isPaymentOpen = false;
-        });
-      },
-      borderRadius: BorderRadius.vertical(
-        top: isFirst ? const Radius.circular(8) : Radius.zero,
-        bottom: isLast ? const Radius.circular(8) : Radius.zero,
-      ),
-      child: Container(
-        width: double.infinity,
-        color: bgColor,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              method,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: Colors.black87,
+          // Header: Payment ^
+          InkWell(
+            onTap: () => setState(() => _isPaymentOpen = false),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: const BoxDecoration(
+                color: kCream,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Payment',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    size: 18,
+                    color: Colors.black87,
+                  ),
+                ],
               ),
             ),
-            if (isSelected)
-              const Icon(Icons.check_rounded, size: 18, color: Colors.black87),
-          ],
-        ),
+          ),
+
+          // Opsi Cash
+          InkWell(
+            onTap: () {
+              setState(() {
+                _selectedPayment = 'Cash';
+                _isPaymentOpen = false;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              color: _selectedPayment == 'Cash'
+                  ? kDropdownBlue
+                  : kDropdownSelected,
+              child: Text(
+                'Cash',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: _selectedPayment == 'Cash'
+                      ? FontWeight.bold
+                      : FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+
+          // Opsi Qris
+          InkWell(
+            onTap: () {
+              setState(() {
+                _selectedPayment = 'Qris';
+                _isPaymentOpen = false;
+              });
+            },
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(6)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: _selectedPayment == 'Qris'
+                    ? kDropdownBlue
+                    : (_selectedPayment == 'Cash' ? kDropdownSelected : kCream),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(6)),
+              ),
+              child: Text(
+                'Qris',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: _selectedPayment == 'Qris'
+                      ? FontWeight.bold
+                      : FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

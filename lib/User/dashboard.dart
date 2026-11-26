@@ -35,15 +35,37 @@ const kIconBox = Color(0xFFD9D9D9);
 const kBlue = Color(0xFF2F88FF);
 
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  final int initialIndex;
+  const MainPage({super.key, this.initialIndex = 0});
 
   @override
   State<MainPage> createState() => _MainPageState();
 }
 
 class _MainPageState extends State<MainPage> {
-  int _index = 0;
+  late int _index;
   int _pesananRefreshKey = 0; // increment setiap kali tab Pesanan dibuka
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex;
+    if (_index == 1) {
+      _pesananRefreshKey++;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is int && _index != args) {
+      setState(() {
+        _index = args;
+        if (_index == 1) _pesananRefreshKey++;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -799,7 +821,7 @@ class ProfilePage extends StatelessWidget {
                     children: [
                       Text(
                         SupabaseService.currentUser?.username ??
-                            SupabaseService.currentUser!.email.split('@').first,
+                            (SupabaseService.currentUser?.email.split('@').first ?? 'User'),
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,

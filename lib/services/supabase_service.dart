@@ -39,7 +39,8 @@ class SupabaseService {
     try {
       await Supabase.initialize(
         url: supabaseUrl,
-        anonKey: supabaseAnonKey, // publishableKey di versi baru
+        // ignore: deprecated_member_use
+        anonKey: supabaseAnonKey,
       );
       _initialized = true;
       if (kDebugMode) {

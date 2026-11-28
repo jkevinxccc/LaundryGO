@@ -651,33 +651,58 @@ class SupabaseService {
   /// Mengambil data statistik untuk Dashboard Admin
   static Future<Map<String, dynamic>> getAdminDashboardStats() async {
     try {
-      final pesananRes = await client
-          .from('Pesanan')
-          .select('id_pesanan, total_harga, status');
+      List<dynamic> pesanan = [];
+      try {
+        final pesananRes = await client
+            .from('Pesanan')
+            .select('id_pesanan, total_harga, status, Detail_Pesanan(sub_total)');
+        pesanan = pesananRes as List;
+      } catch (_) {
+        final pesananRes = await client
+            .from('Pesanan')
+            .select('id_pesanan, total_harga, status');
+        pesanan = pesananRes as List;
+      }
+
       final pelangganRes = await client
           .from('Pelanggan')
           .select('id_pelanggan');
 
-      final List<dynamic> pesanan = pesananRes as List;
       final int totalPemesanan = pesanan.length;
 
       int totalSelesai = 0;
       int totalPendapatan = 0;
 
       for (final p in pesanan) {
-        final st = p['status']?.toString().toLowerCase() ?? '';
-        final harga = p['total_harga'] as int? ?? 0;
-        if (st == 'selesai') {
+        final st = p['status']?.toString().toLowerCase().trim() ?? '';
+        if (st == 'selesai' || st == 'done' || st == 'finish') {
           totalSelesai++;
-          totalPendapatan += harga;
         }
-      }
 
-      // Jika belum ada pesanan yang berstatus selesai, hitung total omset dari seluruh pesanan
-      if (totalPendapatan == 0) {
-        for (final p in pesanan) {
-          totalPendapatan += (p['total_harga'] as int? ?? 0);
+        // Ambil nilai harga dari kolom total_harga
+        int harga = 0;
+        final rawHarga = p['total_harga'];
+        if (rawHarga != null) {
+          harga = (rawHarga is num)
+              ? rawHarga.toInt()
+              : (int.tryParse(rawHarga.toString()) ?? 0);
         }
+
+        // Fallback jika total_harga di tabel Pesanan 0 atau null, ambil akumulasi sub_total dari Detail_Pesanan
+        if (harga == 0 && p['Detail_Pesanan'] != null) {
+          final details = p['Detail_Pesanan'] as List<dynamic>? ?? [];
+          for (final d in details) {
+            final stVal = d['sub_total'];
+            if (stVal != null) {
+              harga += (stVal is num)
+                  ? stVal.toInt()
+                  : (int.tryParse(stVal.toString()) ?? 0);
+            }
+          }
+        }
+
+        // Akumulasikan SELURUH harga pemesanan yang dilakukan user sebagai total pendapatan
+        totalPendapatan += harga;
       }
 
       final int totalPelanggan = (pelangganRes as List).length;

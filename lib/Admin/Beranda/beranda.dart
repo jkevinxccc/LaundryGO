@@ -165,6 +165,16 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
         setState(() {
           _stats = results[0] as Map<String, dynamic>;
           final allOrders = results[1] as List<Map<String, dynamic>>;
+
+          // Pastikan total pendapatan mencakup seluruh pesanan yang dilakukan user
+          final int totalFromOrders = allOrders.fold<int>(
+            0,
+            (sum, o) => sum + ((o['price'] as num?)?.toInt() ?? 0),
+          );
+          if (totalFromOrders > (_stats['totalPendapatan'] as int? ?? 0)) {
+            _stats['totalPendapatan'] = totalFromOrders;
+          }
+
           // Khusus pesanan baru yang dibuat dari user ('Baru' atau 'Pending').
           // Jika status sudah diubah menjadi 'Diproses' atau 'Selesai', otomatis hilang dari Pesanan Terbaru.
           final newOrders = allOrders.where((o) {
